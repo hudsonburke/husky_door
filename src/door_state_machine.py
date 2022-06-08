@@ -4,9 +4,8 @@ from enum import Enum, auto
 import rospy
 import actionlib
 from actionlib_msgs.msg import *
-from geometry_msgs.msg import Twist, PoseStamped
 from move_base_msgs.msg import MoveBaseAction, MoveBaseGoal
-import dynamic_reconfigure.client
+from tf.transformations import quaternion_from_euler
 
 
 class States(Enum):
@@ -23,33 +22,22 @@ class DoorStateMachine:
         self.client = actionlib.SimpleActionClient('move_base', MoveBaseAction)
         self.client.wait_for_server()
 
-        self.goal_pub = rospy.Publisher(
-            "move_base/current_goal", PoseStamped, queue_size=100)
-
     def set_state(self, state):
         self.__state = state
 
     def get_state(self):
         return self.__state
 
-    def navigate(self, x, y, frame="map"):
-        """self.goal = PoseStamped()
-        # self.goal.header.frame_id = frame
-        # self.goal.header.stamp = rospy.Time.now()
-        # self.goal.pose.position.x = x
-        # self.goal.pose.position.y = y
-        # self.goal.pose.orientation.w = 1.0
-
-        # self.goal_pub.publish(self.goal)
-
-        ##OR"""
-
+    def navigate(self, x, y, yaw=0.0, frame="map"):  # yaw in degrees
         self.goal = MoveBaseGoal()
         self.goal.target_pose.header.frame_id = frame
         self.goal.target_pose.header.stamp = rospy.Time.now()
         self.goal.target_pose.pose.position.x = x
         self.goal.target_pose.pose.position.y = y
-        self.goal.target_pose.pose.orientation.w = 1.0  # no rotation
+
+        (self.goal.target_pose.pose.orientation.x, self.goal.target_pose.pose.orientation.y,
+         self.goal.target_pose.pose.orientation.z, self.goal.target_pose.pose.orientation.w) = quaternion_from_euler(0, 0, yaw)
+        # default: no rotation
 
         self.client.send_goal(self.goal)
 
@@ -64,7 +52,7 @@ class DoorStateMachine:
             result = self.client.get_result()
             if result:
                 rospy.loginfo("Goal execution done!")
-                return True  # could use this to determine if complete
+                return True
 
 
 if __name__ == "__main__":
